@@ -15,7 +15,7 @@ This revision fixes those issues. It is a revision, not a rewrite: all four docu
 ## 2. Decisions (settled with the project owner)
 
 1. **Bluetooth is deferred to v2.** Protocol v1 is defined over QUIC/UDP only. The transport abstraction remains in the architecture; Bluetooth becomes a short "future transports" note.
-2. **Naming: everything `remote-*`.** Crates become `remote` (daemon), `remote-cli`, `remote-core`. The CLI binary is `remote`. The rename of directories and Cargo manifests is in scope (the workspace has ~3 source files; this is the cheap moment).
+2. **Naming: everything `remote-*`.** Crates become `remote` (daemon, binary `remoted` per Unix daemon convention), `remote-cli`, `remote-core`. The CLI binary is `remote`. The daemon binary cannot also be `remote`: two bin targets with the same output filename collide in `target/` (cargo warns today, hard error in the future). The rename of directories and Cargo manifests is in scope (the workspace has ~3 source files; this is the cheap moment).
 3. **P0 core = base + clipboard + files.** P0: discovery, pairing, secure session, capability/permission negotiation, clipboard sync, file transfer. P1: remote input (mouse/keyboard), media control, sharing. P2: audio, video, camera, microphone, window control, notifications, GUI. P3: commands, Bluetooth, remaining future items.
 4. **Sharing enters Protocol v1; Commands moves to v2/P3.** Sharing (send text/URL) gets a service ID and messages. Commands (remote command execution) is removed from v1 protocol scope and marked P3 in requirements.
 
@@ -103,7 +103,7 @@ Light touch only:
 ## 8. Crate rename (code)
 
 - Workspace members become `remote` (daemon), `remote-cli`, `remote-core`, in directories `remote/`, `remote-cli/`, `remote-core/` (the repo root being named `remote` does not conflict with a member directory of the same name).
-- `Cargo.toml` workspace members and each crate's `name` updated; `remote-cli` binary name set to `remote`.
+- `Cargo.toml` workspace members and each crate's `name` updated; `remote-cli` binary name set to `remote`; the daemon's binary set to `remoted` via `[[bin]]` to avoid the output-filename collision with the CLI.
 - The existing `connectcore/src/{discovery,packet}.rs` move unchanged into `remote-core`.
 - `cargo build` must pass after the rename.
 

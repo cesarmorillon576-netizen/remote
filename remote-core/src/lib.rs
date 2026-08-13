@@ -1,0 +1,1 @@
+//! core library: protocol, discovery, pairing, services, transport.
