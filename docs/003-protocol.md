@@ -4,15 +4,17 @@
 **Protocol:** Remote Protocol
 **Protocol Version:** `1`
 **Wire Identifier:** `remote/1`
-**Status:** Stable Specification
+**Status:** Draft
 **Primary Transport:** QUIC over UDP
-**Discovery Transport:** UDP multicast / Bluetooth discovery
+**Discovery Transport:** UDP multicast
 **Control Serialization:** CBOR
 **Binary Integer Encoding:** Big Endian
-**Identity:** UUIDv4 + Ed25519
+**Identity:** UUIDv4 + Ed25519 in a self-signed X.509 certificate
 **File Integrity:** SHA-256
 **Audio Codec:** Opus
 **Video Codec:** H.264
+
+**Path to Stable:** This document becomes a Stable Specification when two independent implementations interoperate over every P0 service (discovery, pairing, session establishment, capability and permission negotiation, clipboard, file transfer). Until then, wire-level details may change without a protocol version bump.
 
 ---
 
@@ -119,17 +121,14 @@ CAMERA
 MICROPHONE
 NOTIFICATIONS
 DEVICE
+SHARING
 ```
 
 ---
 
 # 5. Transport Architecture
 
-Remote supports two transport types.
-
-## 5.1 IP Transport
-
-The primary transport is:
+Protocol v1 defines a single transport:
 
 ```text
 QUIC over UDP
@@ -185,35 +184,7 @@ remote/1
 
 ---
 
-# 8. Bluetooth Transport
-
-Bluetooth is a secondary transport.
-
-Bluetooth uses:
-
-```text
-Bluetooth Low Energy
-```
-
-for discovery and:
-
-```text
-Bluetooth L2CAP CoC
-```
-
-for the Remote byte transport.
-
-The Remote protocol messages transmitted over Bluetooth are identical to those transmitted over the IP transport.
-
-Bluetooth does not use the IP ports.
-
-Bluetooth does not use QUIC.
-
-The transport layer exposes a reliable ordered byte stream to the Remote session layer.
-
----
-
-# 9. Transport Abstraction
+# 8. Transport Abstraction
 
 The Remote core operates on an abstract transport.
 
@@ -241,6 +212,16 @@ Android
 
 ---
 
+# 9. Future Transports
+
+Bluetooth (BLE discovery + L2CAP CoC byte transport) is deferred to Protocol v2.
+
+Any future transport that does not provide TLS 1.3 natively must define session encryption and authentication before adoption.
+
+The transport abstraction (§8) is retained for this purpose: adding a transport must not change protocol messages or services.
+
+---
+
 # 10. Discovery
 
 Discovery allows devices to locate Remote peers.
@@ -253,6 +234,24 @@ Discovery:
 * Does not grant permissions.
 
 Discovery only advertises enough information to establish a connection.
+
+Every discovery datagram shares one wire format:
+
+```text
+┌──────────────┬─────────────┬──────────────┐
+│ magic        │ packet type │ CBOR payload │
+│ "RMT1" 4 B   │ u8          │ N bytes      │
+└──────────────┴─────────────┴──────────────┘
+```
+
+Packet types:
+
+```text
+0x01 ADVERTISEMENT
+0x02 DISCOVER
+```
+
+A datagram whose magic or packet type is unknown is silently dropped.
 
 ---
 
@@ -272,10 +271,10 @@ Discovery packets are individual UDP datagrams.
 
 # 12. IPv6 Discovery
 
-Remote uses IPv6 multicast:
+Remote uses the dedicated link-local IPv6 multicast group:
 
 ```text
-ff02::1
+ff02::524d:5431
 ```
 
 on UDP port:
@@ -292,7 +291,7 @@ Implementations must use the local interface scope.
 
 Devices periodically announce themselves.
 
-Advertisement:
+An advertisement is a discovery datagram with packet type `0x01` and the following CBOR payload:
 
 ```text
 {
@@ -374,6 +373,8 @@ A device may request an immediate advertisement using:
 DISCOVER
 ```
 
+`DISCOVER` is a discovery datagram with packet type `0x02` and an empty CBOR map `{}` as payload.
+
 The request is sent to:
 
 ```text
@@ -399,6 +400,16 @@ Implementations must never trust:
 All values must be validated.
 
 Discovery never grants access.
+
+## 17.1 Discovery Privacy
+
+The persistent `device_id` is broadcast in clear text on the local network.
+
+An observer on the same network can use it to track the device across networks over time.
+
+Rotating discovery identifiers are a planned v2 mitigation.
+
+Users can disable discovery entirely (see FR-001 in the requirements document).
 
 ---
 
@@ -430,18 +441,25 @@ It is not:
 
 # 19. Identity Key Pair
 
-Every Remote installation generates:
+Every Remote installation generates exactly one:
 
 ```text
-Ed25519 private key
-Ed25519 public key
+Ed25519 key pair
 ```
+
+wrapped in a:
+
+```text
+self-signed X.509 certificate
+```
+
+The certificate is used for QUIC/TLS 1.3 and is the device's authentication identity.
 
 The private key is generated locally.
 
 The private key never leaves the device.
 
-The public key is associated with the device identity.
+There is no separate pairing key: the same certificate is presented in every connection and pinned during pairing.
 
 ---
 
@@ -452,7 +470,7 @@ A Remote installation stores:
 ```text
 device_id
 private_key
-public_key
+certificate
 paired_devices
 ```
 
@@ -461,7 +479,7 @@ Paired device records contain:
 ```text
 device_id
 device_name
-public_key
+certificate (or its SPKI SHA-256 fingerprint)
 permissions
 paired_at
 last_seen
@@ -472,6 +490,8 @@ last_seen
 # 21. Pairing
 
 Pairing establishes permanent trust between two devices.
+
+Pairing runs inside an established TLS session: the channel is already encrypted, but the peer is not yet trusted.
 
 A device begins as:
 
@@ -485,13 +505,13 @@ After successful pairing:
 PAIRED
 ```
 
-A connection from an unpaired device cannot access privileged services.
+A connection from an unpaired device can only proceed into the pairing flow and cannot access privileged services.
 
 ---
 
 # 22. Pairing Requirements
 
-Pairing requires explicit user confirmation.
+Pairing requires explicit user confirmation on **both** devices.
 
 The user must be able to identify:
 
@@ -502,6 +522,8 @@ device_id
 
 of the device requesting pairing.
 
+The user must verify that the short authentication string (SAS) displayed on both devices is identical.
+
 A device must not silently pair with another device.
 
 ---
@@ -509,31 +531,35 @@ A device must not silently pair with another device.
 # 23. Pairing Flow
 
 ```text
-Device A                         Device B
-   │                                │
-   │──── PAIR_REQUEST ─────────────►│
-   │                                │
-   │◄──── PAIR_CHALLENGE ───────────│
-   │                                │
-   │──── PAIR_RESPONSE ────────────►│
-   │                                │
-   │◄──── PAIR_ACCEPT ──────────────│
-   │                                │
-   │         PAIRED                  │
+Device A (initiator)              Device B (responder)
+   │                                  │
+   │──── PAIR_REQUEST ───────────────►│
+   │                                  │
+   │◄──── PAIR_CHALLENGE ─────────────│
+   │                                  │
+   │   Both devices display SAS       │
+   │   User confirms on both          │
+   │                                  │
+   │──── PAIR_RESPONSE ──────────────►│
+   │                                  │
+   │◄──── PAIR_ACCEPT / PAIR_REJECT ──│
+   │                                  │
+   │            PAIRED                │
 ```
 
 ---
 
 # 24. Pair Request
 
+Sent by the initiator.
+
 Payload:
 
 ```text
 {
-    device_id,
-    device_name,
-    public_key,
-    nonce
+    1: device_id,
+    2: device_name,
+    3: nonce
 }
 ```
 
@@ -542,92 +568,114 @@ Where:
 ```text
 device_id: UUID
 device_name: UTF-8 string
-public_key: 32 bytes
 nonce: 32 random bytes
 ```
+
+The nonce must be freshly generated for every pairing attempt.
 
 ---
 
 # 25. Pair Challenge
 
-The responder creates:
-
-```text
-challenge
-```
-
-with:
-
-```text
-32 random bytes
-```
+Sent by the responder.
 
 Payload:
 
 ```text
 {
-    device_id,
-    challenge
+    1: device_id,
+    2: nonce
 }
 ```
+
+Where:
+
+```text
+device_id: UUID
+nonce: 32 random bytes
+```
+
+The nonce must be freshly generated for every pairing attempt.
+
+After this message, both devices can derive the SAS.
 
 ---
 
-# 26. Pair Response
+# 26. Short Authentication String
 
-The initiator signs:
-
-```text
-protocol_version
-initiator_device_id
-responder_device_id
-initiator_nonce
-challenge
-```
-
-using its Ed25519 private key.
-
-Payload:
+Both devices compute:
 
 ```text
-{
-    device_id,
-    public_key,
-    signature
-}
+input = "REMOTE-PAIR-V1"
+     || sort(SPKI_SHA256_initiator, SPKI_SHA256_responder)
+     || nonce_initiator
+     || nonce_responder
+
+SAS = SHA-256(input) interpreted as Big Endian, mod 10^6,
+      rendered as 6 decimal digits (zero-padded)
 ```
+
+Where:
+
+```text
+SPKI_SHA256_*: SHA-256 over the peer certificate's SubjectPublicKeyInfo (32 bytes each)
+sort: lexicographic byte order
+nonce_*: the 32-byte nonces from PAIR_REQUEST and PAIR_CHALLENGE
+```
+
+Each certificate fingerprint is taken from the certificate presented in the TLS handshake, not from any application-level message.
+
+Both devices display the SAS.
+
+The user must confirm on both devices that the codes are identical.
+
+Matching codes prove that both devices see the same two certificates: a man-in-the-middle would cause the codes to differ.
 
 ---
 
 # 27. Pair Acceptance
 
-The responder verifies the signature.
+After the user confirms the SAS, the initiator sends:
 
-If valid and the user approves:
+```text
+PAIR_RESPONSE
+{
+    1: sas_confirmed
+}
+```
+
+with `sas_confirmed = true`.
+
+If the responder's user also confirmed, the responder sends:
 
 ```text
 PAIR_ACCEPT
+{}
 ```
 
-is sent.
+On PAIR_ACCEPT, both devices pin the peer certificate (store its SPKI SHA-256 fingerprint) and persist the pairing record.
 
-Both devices persist the peer's public key.
+QR-code pairing (future) transports the SPKI fingerprint directly and replaces the visual comparison.
 
 ---
 
 # 28. Pair Rejection
 
-If the user rejects pairing:
+If the user rejects pairing, or the SAS codes do not match:
+
+* The initiator sends `PAIR_RESPONSE` with `sas_confirmed = false`, or
+* The responder sends:
 
 ```text
 PAIR_REJECT
+{
+    1: reason
+}
 ```
 
-is sent.
+where `reason` is a u16 error code.
 
-The connection is closed.
-
-No pairing record is created.
+In both cases the connection is closed and no pairing record is created.
 
 ---
 
@@ -638,7 +686,7 @@ A paired device may be revoked locally.
 Revocation deletes:
 
 ```text
-public_key
+certificate (pinned fingerprint)
 permissions
 pairing metadata
 ```
@@ -651,27 +699,22 @@ A revoked device must pair again before accessing privileged services.
 
 # 30. Session Establishment
 
-After QUIC connection:
-
 ```text
-QUIC CONNECT
+QUIC CONNECT (TLS 1.3, both certificates presented)
      ↓
-HELLO
+HELLO ↔ HELLO_RESPONSE
      ↓
-HELLO_RESPONSE
+paired? ──no──► PAIR flow (user confirmation) ──accepted──┐
+     │yes                                                  │
+     ▼◄────────────────────────────────────────────────────┘
+CAPABILITIES ↔ CAPABILITIES_RESPONSE
      ↓
-AUTH
+PERMISSIONS ↔ PERMISSIONS_RESPONSE      (each side sends its grants)
      ↓
-AUTH_RESPONSE
-     ↓
-CAPABILITIES
-     ↓
-CAPABILITIES_RESPONSE
-     ↓
-PERMISSIONS
-     ↓
-SESSION_READY
+SESSION_READY (each side; established when both sent and received)
 ```
+
+For a paired peer, authentication happens during the QUIC handshake via certificate pinning (§51); no application-level authentication messages exist.
 
 ---
 
@@ -702,7 +745,7 @@ CONNECTED
      ↓
 HANDSHAKING
      ↓
-AUTHENTICATING
+PAIRING          (only if the peer is not paired)
      ↓
 NEGOTIATING
      ↓
@@ -712,6 +755,8 @@ CLOSING
      ↓
 DISCONNECTED
 ```
+
+A connection with a paired peer skips `PAIRING` and moves directly from `HANDSHAKING` to `NEGOTIATING`.
 
 ---
 
@@ -731,7 +776,7 @@ responder
 
 These roles do not determine permissions.
 
-Both devices are equal protocol peers after authentication.
+Both devices are equal protocol peers after the session is established.
 
 Either device may:
 
@@ -766,8 +811,11 @@ The control stream carries:
 HELLO
 HELLO_RESPONSE
 
-AUTH
-AUTH_RESPONSE
+PAIR_REQUEST
+PAIR_CHALLENGE
+PAIR_RESPONSE
+PAIR_ACCEPT
+PAIR_REJECT
 
 CAPABILITIES
 CAPABILITIES_RESPONSE
@@ -791,9 +839,10 @@ STREAM_ACCEPT
 STREAM_REJECT
 STREAM_CLOSE
 
-EVENT
 ERROR
 ```
+
+plus every service-scoped message defined by the per-service registries.
 
 Large binary data must not use the control stream.
 
@@ -846,6 +895,8 @@ Fields:
 |  6 | session_id | UUID | conditional |
 |  7 | service    | u16  | yes         |
 |  8 | payload    | CBOR | yes         |
+
+The `type` field is interpreted **within the namespace of the `service` field**: each service defines its own message types starting at `0x0001`. The same type value means different messages under different services.
 
 ---
 
@@ -978,14 +1029,19 @@ Unknown flags are ignored when they are not mandatory.
 
 ---
 
-# 45. Core Message IDs
+# 45. Core Message Types
+
+Message types for service `0x0000 CORE`:
 
 ```text
 0x0001 HELLO
 0x0002 HELLO_RESPONSE
 
-0x0010 AUTH
-0x0011 AUTH_RESPONSE
+0x0010 PAIR_REQUEST
+0x0011 PAIR_CHALLENGE
+0x0012 PAIR_RESPONSE
+0x0013 PAIR_ACCEPT
+0x0014 PAIR_REJECT
 
 0x0020 CAPABILITIES
 0x0021 CAPABILITIES_RESPONSE
@@ -1009,9 +1065,10 @@ Unknown flags are ignored when they are not mandatory.
 0x0072 STREAM_REJECT
 0x0073 STREAM_CLOSE
 
-0x0080 EVENT
 0x0090 ERROR
 ```
+
+There is no generic EVENT message: typed events use their own message type with the `EVENT` flag set.
 
 ---
 
@@ -1097,90 +1154,69 @@ Any other version is rejected.
 
 ---
 
-# 51. AUTH
+# 51. Authentication
 
-Authentication proves that the peer controls the private key belonging to the paired public key.
+Authentication is mutual TLS with certificate pinning.
 
-Payload:
+Both peers present their certificates during the QUIC/TLS 1.3 handshake.
 
-```text
-{
-    1: device_id,
-    2: public_key,
-    3: challenge,
-    4: signature
-}
-```
+The client certificate is required: a connection without one is rejected.
+
+There are no application-level authentication messages.
+
+Authentication is bound to the encrypted channel by construction: proving possession of the private key is part of the TLS handshake itself.
 
 ---
 
-# 52. Authentication Challenge
+# 52. Certificate Pinning
 
-The challenge is:
+A peer is authenticated when the SPKI SHA-256 fingerprint of its presented certificate equals the fingerprint pinned during pairing.
 
-```text
-32 random bytes
-```
+Verification is performed by both sides.
 
-The challenge must be generated for every session.
+Standard certificate-chain validation (CA trust) is not used: the pinned fingerprint is the only trust anchor.
 
-A challenge must never be reused.
+Certificate expiry dates are ignored; trust is managed through pairing and revocation.
 
 ---
 
-# 53. Authentication Signature
+# 53. SPKI Fingerprint
 
-The signature covers:
-
-```text
-"REMOTE-AUTH-V1"
-protocol_version
-session_id
-initiator_device_id
-responder_device_id
-challenge
-```
-
-The resulting byte sequence is signed using:
+The fingerprint is:
 
 ```text
-Ed25519
+SHA-256 over the DER-encoded SubjectPublicKeyInfo of the certificate
 ```
+
+producing 32 bytes.
+
+Using the SPKI (rather than the whole certificate) keeps the pin stable if the certificate is ever re-issued around the same key.
 
 ---
 
-# 54. AUTH_RESPONSE
+# 54. Pinning Failure
 
-Payload:
+If the presented certificate's fingerprint does not match the pinned value:
 
-```text
-{
-    1: authenticated,
-    2: reason?
-}
-```
+* The session is closed with error `PINNING_MISMATCH`.
+* No message beyond the error is processed.
+* The pairing record is not modified.
 
-Valid values:
+A pinning mismatch may indicate an attack or a reinstalled peer; the device must never silently re-pin.
 
-```text
-authenticated = true
-authenticated = false
-```
+Recovering requires the user to revoke the old pairing and pair again.
 
 ---
 
-# 55. Authentication Failure
+# 55. Unknown Certificates
 
-Authentication fails when:
+A connection from a certificate that matches no pairing record is allowed to proceed only into the pairing flow (§21).
 
-* Device is not paired.
-* Public key does not match stored identity.
-* Signature is invalid.
-* Challenge is invalid.
-* Session ID is invalid.
-* Device ID does not match the authenticated key.
+An unknown peer:
 
-The session is closed after authentication failure.
+* May exchange HELLO and PAIR_* messages.
+* Cannot access privileged services.
+* Cannot open data streams.
 
 ---
 
@@ -1200,6 +1236,7 @@ The session is closed after authentication failure.
 0x000B NOTIFICATIONS
 0x000C DEVICE_INFO
 0x000D DEVICE_POWER
+0x000E SHARING
 ```
 
 ---
@@ -1219,6 +1256,7 @@ The session is closed after authentication failure.
 0x0900 MICROPHONE
 0x0A00 NOTIFICATIONS
 0x0B00 DEVICE
+0x0C00 SHARING
 ```
 
 ---
@@ -1308,6 +1346,8 @@ Permissions are evaluated when a service is started.
 
 0x00A0 DEVICE_INFO
 0x00A1 DEVICE_POWER
+
+0x00B0 SHARE_RECEIVE
 ```
 
 ---
@@ -1395,6 +1435,8 @@ Valid directions:
 0x03 BIDIRECTIONAL
 ```
 
+Directions are from the perspective of the peer sending `SERVICE_START` / `STREAM_OPEN`: `SEND` means the requester transmits payload data to the peer.
+
 ---
 
 # 67. Service Acceptance
@@ -1466,14 +1508,21 @@ Payload:
 
 ```text
 {
-    1: service_id,
-    2: stream_type,
-    3: direction,
-    4: options
+    1: stream_id,
+    2: service_id,
+    3: stream_type,
+    4: direction,
+    5: options
 }
 ```
 
+`stream_id` is a UUIDv4 chosen by the requester.
+
 The QUIC stream itself is opened by the initiating peer.
+
+The data-plane QUIC stream begins with the 16 raw bytes of `stream_id`, binding it to the negotiated service, type, and options.
+
+FILE streams carry `transfer_id` and `file_id` inside `options`.
 
 ---
 
@@ -1489,7 +1538,7 @@ Payload:
 
 ```text
 {
-    1: stream_type,
+    1: stream_id,
     2: options
 }
 ```
@@ -1510,7 +1559,8 @@ Payload:
 
 ```text
 {
-    1: error_code
+    1: stream_id,
+    2: error_code
 }
 ```
 
@@ -1572,6 +1622,14 @@ Supported content:
 text/plain
 text/html
 image/png
+```
+
+Message types:
+
+```text
+0x0001 CLIPBOARD_UPDATE
+0x0002 CLIPBOARD_REQUEST
+0x0003 CLIPBOARD_RESPONSE
 ```
 
 ---
@@ -1653,6 +1711,16 @@ Service:
 
 ```text
 0x0200
+```
+
+Message types:
+
+```text
+0x0001 FILE_OFFER
+0x0002 FILE_ACCEPT
+0x0003 FILE_REJECT
+0x0004 FILE_COMPLETE
+0x0005 FILE_CANCEL
 ```
 
 ---
@@ -1768,6 +1836,8 @@ Payload:
 
 File contents are transmitted through a dedicated QUIC stream.
 
+The stream begins with the 16 raw bytes of the negotiated `stream_id` (§71), before the first chunk.
+
 Each chunk contains:
 
 ```text
@@ -1857,6 +1927,17 @@ Capabilities:
 ```text
 MOUSE
 KEYBOARD
+```
+
+Message types:
+
+```text
+0x0001 MOUSE_MOVE
+0x0002 MOUSE_BUTTON
+0x0003 MOUSE_SCROLL
+0x0004 KEY_DOWN
+0x0005 KEY_UP
+0x0006 TEXT_INPUT
 ```
 
 ---
@@ -1963,7 +2044,11 @@ Payload:
 }
 ```
 
+`key_code` values are **USB HID Usage IDs from the Keyboard/Keypad page (0x07)**, as defined by the USB HID Usage Tables (normative reference).
+
 The key code is independent of the local operating system.
+
+Media and consumer keys are not part of v1; the HID Consumer page (0x0C) is reserved for v2.
 
 ---
 
@@ -2013,21 +2098,38 @@ Service:
 0x0400
 ```
 
+Message types:
+
+```text
+0x0001 WINDOW_LIST
+0x0002 WINDOW_LIST_RESPONSE
+0x0003 WINDOW_FOCUS
+0x0004 WINDOW_MINIMIZE
+0x0005 WINDOW_MAXIMIZE
+0x0006 WINDOW_RESTORE
+0x0007 WINDOW_MOVE
+0x0008 WINDOW_RESIZE
+0x0009 WINDOW_CLOSE
+0x0010 WINDOW_CHANGED (event)
+```
+
 ---
 
 # 101. Window Model
 
-Each window has:
+Each window is a CBOR map:
 
 ```text
-window_id
-title
-application
-x
-y
-width
-height
-state
+{
+    1: window_id,
+    2: title,
+    3: application,
+    4: x,
+    5: y,
+    6: width,
+    7: height,
+    8: state
+}
 ```
 
 ---
@@ -2060,22 +2162,21 @@ WINDOW_CLOSE
 
 # 104. Window List
 
-Response:
+`WINDOW_LIST_RESPONSE` payload:
 
 ```text
 {
-    1: [
-        {
-            window_id,
-            title,
-            application,
-            x,
-            y,
-            width,
-            height,
-            state
-        }
-    ]
+    1: [window, window, ...]
+}
+```
+
+using the window map from §101.
+
+`WINDOW_CHANGED` is an event carrying a single window map:
+
+```text
+{
+    1: window
 }
 ```
 
@@ -2103,6 +2204,25 @@ Service:
 
 ```text
 0x0500
+```
+
+Message types:
+
+```text
+0x0001 PLAY
+0x0002 PAUSE
+0x0003 STOP
+0x0004 NEXT
+0x0005 PREVIOUS
+0x0006 SEEK
+0x0007 SET_VOLUME
+0x0008 SET_MUTE
+0x0009 MEDIA_STATE_REQUEST
+0x0010 PLAYBACK_CHANGED (event)
+0x0011 TRACK_CHANGED (event)
+0x0012 VOLUME_CHANGED (event)
+0x0013 MUTE_CHANGED (event)
+0x0014 MEDIA_STATE_RESPONSE
 ```
 
 ---
@@ -2135,17 +2255,19 @@ MUTE_CHANGED
 
 # 109. Media State
 
-A media state contains:
+`MEDIA_STATE_RESPONSE` (and media events) carry the media state map:
 
 ```text
-playing
-title
-artist
-album
-position
-duration
-volume
-muted
+{
+    1: playing,
+    2: title,
+    3: artist,
+    4: album,
+    5: position,
+    6: duration,
+    7: volume,
+    8: muted
+}
 ```
 
 ---
@@ -2157,6 +2279,8 @@ Service:
 ```text
 0x0600
 ```
+
+The audio service defines no control-stream message types in v1: negotiation happens via `SERVICE_START` options and `STREAM_OPEN` options.
 
 Codec:
 
@@ -2292,6 +2416,8 @@ Service:
 0x0700
 ```
 
+The video service defines no control-stream message types in v1: negotiation happens via `SERVICE_START` options and `STREAM_OPEN` options.
+
 Codec:
 
 ```text
@@ -2369,6 +2495,8 @@ Service:
 0x0800
 ```
 
+The camera service defines no control-stream message types in v1: negotiation happens via `SERVICE_START` options and `STREAM_OPEN` options.
+
 The camera service exposes a physical camera as a Remote video source.
 
 Example:
@@ -2421,6 +2549,8 @@ Service:
 0x0900
 ```
 
+The microphone service defines no control-stream message types in v1: negotiation happens via `SERVICE_START` options and `STREAM_OPEN` options.
+
 The microphone service exposes a physical microphone as a Remote audio source.
 
 Example:
@@ -2459,22 +2589,38 @@ Service:
 0x0A00
 ```
 
-Notifications contain:
+Message types:
 
 ```text
-notification_id
-application
-title
-body
-timestamp
+0x0001 NOTIFICATION_POST
+0x0002 NOTIFICATION_DISMISS
+0x0003 NOTIFICATION_CLEAR
 ```
 
-Operations:
+`NOTIFICATION_POST` payload:
 
 ```text
-NOTIFICATION_POST
-NOTIFICATION_DISMISS
-NOTIFICATION_CLEAR
+{
+    1: notification_id,
+    2: application,
+    3: title,
+    4: body,
+    5: timestamp
+}
+```
+
+`NOTIFICATION_DISMISS` payload:
+
+```text
+{
+    1: notification_id
+}
+```
+
+`NOTIFICATION_CLEAR` payload:
+
+```text
+{}
 ```
 
 ---
@@ -2499,28 +2645,56 @@ Service:
 0x0B00
 ```
 
-Device information includes:
+Message types:
 
 ```text
-device_id
-device_name
-device_type
-platform
-battery_percentage
-charging
+0x0001 DEVICE_INFO_REQUEST
+0x0002 DEVICE_INFO_RESPONSE
+0x0003 BATTERY_CHANGED (event)
+0x0004 POWER_REQUEST
+```
+
+`DEVICE_INFO_RESPONSE` payload:
+
+```text
+{
+    1: device_id,
+    2: device_name,
+    3: device_type,
+    4: platform,
+    5: battery_percentage,
+    6: charging
+}
+```
+
+`BATTERY_CHANGED` payload:
+
+```text
+{
+    1: battery_percentage,
+    2: charging
+}
 ```
 
 ---
 
 # 128. Device Power
 
-Supported operations:
+`POWER_REQUEST` payload:
 
 ```text
-LOCK
-SLEEP
-SHUTDOWN
-RESTART
+{
+    1: operation
+}
+```
+
+Operations:
+
+```text
+0x01 LOCK
+0x02 SLEEP
+0x03 SHUTDOWN
+0x04 RESTART
 ```
 
 These operations require:
@@ -2535,7 +2709,68 @@ The operating system may reject an operation even when Remote permission is gran
 
 ---
 
-# 129. Error Codes
+# 129. Sharing Service
+
+Service:
+
+```text
+0x0C00
+```
+
+Capability:
+
+```text
+0x000E SHARING
+```
+
+Sharing sends short text or a URL to the peer, which decides how to present it (open, copy, save).
+
+Message types:
+
+```text
+0x0001 SHARE_TEXT
+0x0002 SHARE_URL
+```
+
+`SHARE_TEXT` payload:
+
+```text
+{
+    1: text
+}
+```
+
+`SHARE_URL` payload:
+
+```text
+{
+    1: url
+}
+```
+
+Maximum payload:
+
+```text
+64 KiB
+```
+
+---
+
+# 130. Sharing Permission
+
+Receiving shared content requires:
+
+```text
+SHARE_RECEIVE
+```
+
+permission on the receiving device.
+
+The receiver must never execute or navigate to shared content without user interaction.
+
+---
+
+# 131. Error Codes
 
 ```text
 0x0001 UNKNOWN_MESSAGE
@@ -2564,11 +2799,21 @@ The operating system may reject an operation even when Remote permission is gran
 0x0018 FORMAT_UNSUPPORTED
 0x0019 DEVICE_BUSY
 0x001A OPERATION_CANCELLED
+0x001B PINNING_MISMATCH
+0x001C PAIRING_REJECTED
 ```
+
+Notes:
+
+* `AUTH_FAILED` covers pairing/authentication failures in general.
+* `INVALID_SIGNATURE` covers certificate validation failures.
+* `INVALID_CHALLENGE` covers pairing nonce misuse.
+* `PINNING_MISMATCH` is raised when a presented certificate does not match the pinned fingerprint (§54).
+* `PAIRING_REJECTED` is raised when the user rejects pairing or the SAS confirmation fails.
 
 ---
 
-# 130. Error Message
+# 132. Error Message
 
 Payload:
 
@@ -2586,7 +2831,7 @@ The text message is informational.
 
 ---
 
-# 131. Unknown Messages
+# 133. Unknown Messages
 
 An unknown optional message must result in:
 
@@ -2598,7 +2843,7 @@ The session remains active.
 
 ---
 
-# 132. Invalid Messages
+# 134. Invalid Messages
 
 Malformed messages result in:
 
@@ -2610,7 +2855,7 @@ Repeated malformed messages may terminate the session.
 
 ---
 
-# 133. Rate Limiting
+# 135. Rate Limiting
 
 Rate limiting applies independently to:
 
@@ -2627,7 +2872,7 @@ Media streams are controlled by stream-level flow control.
 
 ---
 
-# 134. Keepalive
+# 136. Keepalive
 
 Remote uses:
 
@@ -2650,7 +2895,7 @@ QUIC transport keepalive remains handled by the QUIC implementation.
 
 ---
 
-# 135. Session Close
+# 137. Session Close
 
 Graceful termination:
 
@@ -2678,15 +2923,15 @@ TRANSPORT_FAILURE
 
 ---
 
-# 136. Reconnection
+# 138. Reconnection
 
 A lost session is considered terminated.
 
 A new connection always performs:
 
 ```text
+QUIC handshake (certificate pinning)
 HELLO
-AUTH
 CAPABILITIES
 PERMISSIONS
 SESSION_READY
@@ -2696,7 +2941,7 @@ The previous session ID is never reused.
 
 ---
 
-# 137. Service Isolation
+# 139. Service Isolation
 
 Failure of one service must not terminate the session.
 
@@ -2719,7 +2964,7 @@ Only the affected service is terminated.
 
 ---
 
-# 138. Stream Closure
+# 140. Stream Closure
 
 A stream can be closed independently.
 
@@ -2727,7 +2972,7 @@ Payload:
 
 ```text
 {
-    1: stream_type,
+    1: stream_id,
     2: reason
 }
 ```
@@ -2736,7 +2981,7 @@ The QUIC stream is then closed.
 
 ---
 
-# 139. Resource Limits
+# 141. Resource Limits
 
 Implementations enforce:
 
@@ -2752,7 +2997,7 @@ These are Remote Protocol v1 limits.
 
 ---
 
-# 140. File Transfer Limits
+# 142. File Transfer Limits
 
 Maximum individual file size:
 
@@ -2764,12 +3009,14 @@ The practical filesystem limit remains platform-dependent.
 
 ---
 
-# 141. Security Requirements
+# 143. Security Requirements
 
 Remote implementations must:
 
 * Use TLS 1.3 through QUIC.
-* Authenticate paired devices.
+* Require client certificates (mutual TLS).
+* Authenticate paired devices by SPKI SHA-256 certificate pinning.
+* Require user SAS confirmation on both devices for pairing.
 * Protect private keys.
 * Validate every message.
 * Validate all payload lengths.
@@ -2782,14 +3029,14 @@ Remote implementations must:
 
 ---
 
-# 142. Sensitive Information
+# 144. Sensitive Information
 
 The following must never be logged by default:
 
 ```text
 Private keys
-Authentication signatures
-Authentication challenges
+Pairing nonces
+SAS codes
 Clipboard contents
 File contents
 Audio payloads
@@ -2813,7 +3060,7 @@ direction
 
 ---
 
-# 143. Key Protection
+# 145. Key Protection
 
 Private identity keys must be stored using the operating system's secure storage mechanism when available.
 
@@ -2837,7 +3084,7 @@ Android Keystore
 
 ---
 
-# 144. Permission Principle
+# 146. Permission Principle
 
 Remote permission and operating-system permission are independent.
 
@@ -2857,7 +3104,7 @@ when the platform requires one.
 
 ---
 
-# 145. Linux Platform Abstraction
+# 147. Linux Platform Abstraction
 
 The protocol does not depend on a specific Linux desktop environment.
 
@@ -2877,7 +3124,7 @@ The protocol itself remains unchanged.
 
 ---
 
-# 146. Windows Platform Abstraction
+# 148. Windows Platform Abstraction
 
 Windows implementations use native platform APIs.
 
@@ -2885,7 +3132,7 @@ The protocol does not expose Windows-specific API names.
 
 ---
 
-# 147. Android Platform Abstraction
+# 149. Android Platform Abstraction
 
 Android implementations use Android APIs for:
 
@@ -2902,26 +3149,27 @@ The Android implementation exposes them through the same Remote services.
 
 ---
 
-# 148. CLI and GUI
+# 150. CLI and GUI
 
 Remote CLI and GUI clients use the same core protocol implementation.
 
 Architecture:
 
 ```text
-              connectcore
+             remote-core
               /        \
              /          \
-          connect     connectgui
+         remote     remote-gui (future)
+        (remoted)
              │
-          connectcli
+         remote-cli
 ```
 
 The CLI does not implement a separate protocol.
 
 ---
 
-# 149. Protocol Independence
+# 151. Protocol Independence
 
 The protocol has no dependency on:
 
@@ -2938,7 +3186,7 @@ Operating-system integrations are adapters.
 
 ---
 
-# 150. Clipboard Synchronization Example
+# 152. Clipboard Synchronization Example
 
 ```text
 Phone                         Laptop
@@ -2965,7 +3213,7 @@ The `update_id` prevents loops.
 
 ---
 
-# 151. Camera Example
+# 153. Camera Example
 
 ```text
 Phone                         Laptop
@@ -2984,7 +3232,7 @@ Phone                         Laptop
 
 ---
 
-# 152. Microphone Example
+# 154. Microphone Example
 
 ```text
 Phone                         Laptop
@@ -3000,7 +3248,7 @@ Phone                         Laptop
 
 ---
 
-# 153. Bidirectional Audio Example
+# 155. Bidirectional Audio Example
 
 ```text
              Remote Session
@@ -3014,7 +3262,7 @@ Both streams may operate simultaneously.
 
 ---
 
-# 154. File Transfer Example
+# 156. File Transfer Example
 
 ```text
 Laptop                         Phone
@@ -3032,7 +3280,7 @@ Laptop                         Phone
 
 ---
 
-# 155. Mouse Control Example
+# 157. Mouse Control Example
 
 ```text
 Phone                         Laptop
@@ -3048,7 +3296,7 @@ Phone                         Laptop
 
 ---
 
-# 156. Media Control Example
+# 158. Media Control Example
 
 ```text
 Phone                         Laptop
@@ -3061,7 +3309,7 @@ Phone                         Laptop
 
 ---
 
-# 157. Window Control Example
+# 159. Window Control Example
 
 ```text
 Phone                         Laptop
@@ -3078,7 +3326,7 @@ Phone                         Laptop
 
 ---
 
-# 158. Complete Connection Flow
+# 160. Complete Connection Flow
 
 ```text
                  Device A
@@ -3095,9 +3343,7 @@ Phone                         Laptop
                      │
               HELLO_RESPONSE
                      │
-                    AUTH
-                     │
-               AUTH_RESPONSE
+             [PAIR flow if unpaired]
                      │
                 CAPABILITIES
                      │
@@ -3126,7 +3372,7 @@ Phone                         Laptop
 
 ---
 
-# 159. Wire Format Summary
+# 161. Wire Format Summary
 
 ```text
 Remote Protocol v1
@@ -3134,7 +3380,8 @@ Remote Protocol v1
 Discovery
     UDP multicast
     IPv4: 239.255.42.21:48621
-    IPv6: ff02::1:48621
+    IPv6: [ff02::524d:5431]:48621
+    Datagram: "RMT1" magic + packet type u8 + CBOR payload
 
 Connection
     QUIC / UDP
@@ -3168,7 +3415,7 @@ Video
 
 ---
 
-# 160. Service Registry
+# 162. Service Registry
 
 ```text
 0x0100 CLIPBOARD
@@ -3182,11 +3429,12 @@ Video
 0x0900 MICROPHONE
 0x0A00 NOTIFICATIONS
 0x0B00 DEVICE
+0x0C00 SHARING
 ```
 
 ---
 
-# 161. Capability Registry
+# 163. Capability Registry
 
 ```text
 0x0001 CLIPBOARD
@@ -3202,16 +3450,17 @@ Video
 0x000B NOTIFICATIONS
 0x000C DEVICE_INFO
 0x000D DEVICE_POWER
+0x000E SHARING
 ```
 
 ---
 
-# 162. Protocol Invariants
+# 164. Protocol Invariants
 
 The following rules are mandatory:
 
-1. A session cannot become established without authentication.
-2. An unauthenticated peer cannot use privileged services.
+1. A session cannot become established without mutual certificate verification (pinning for paired peers, SAS-confirmed pairing otherwise).
+2. A peer whose certificate is not pinned is confined to the pairing flow and cannot use privileged services.
 3. A service cannot start without mutual capability support.
 4. A service cannot start without required permission.
 5. File transfers must verify SHA-256.
@@ -3219,7 +3468,7 @@ The following rules are mandatory:
 7. Large data must use dedicated streams.
 8. A service failure must not terminate unrelated services.
 9. Session IDs must never be reused.
-10. Authentication challenges must never be reused.
+10. Pairing nonces must never be reused.
 11. Private keys must never leave their device.
 12. Discovery information must never be trusted as authentication.
 13. Clipboard update IDs must prevent synchronization loops.
@@ -3228,7 +3477,7 @@ The following rules are mandatory:
 
 ---
 
-# 163. Compatibility
+# 165. Compatibility
 
 A Remote implementation is Protocol v1 compatible when it implements:
 
@@ -3239,8 +3488,11 @@ remote/1
 CBOR framing
 HELLO
 HELLO_RESPONSE
-AUTH
-AUTH_RESPONSE
+PAIR_REQUEST
+PAIR_CHALLENGE
+PAIR_RESPONSE
+PAIR_ACCEPT
+PAIR_REJECT
 CAPABILITIES
 CAPABILITIES_RESPONSE
 PERMISSIONS
@@ -3260,7 +3512,7 @@ and correctly implements the service capabilities it advertises.
 
 ---
 
-# 164. Required Core Services
+# 166. Required Core Services
 
 Protocol v1 requires support for:
 
@@ -3268,13 +3520,14 @@ Protocol v1 requires support for:
 CORE
 CLIPBOARD
 FILE_TRANSFER
-INPUT
-MEDIA
 ```
 
-The following services are supported by Protocol v1:
+The following optional services are supported by Protocol v1:
 
 ```text
+INPUT
+MEDIA
+SHARING
 WINDOW
 AUDIO
 VIDEO
@@ -3286,9 +3539,11 @@ DEVICE
 
 An implementation must advertise the optional services it supports.
 
+A Commands service (remote command execution) is deliberately out of Protocol v1; service ID `0x0D00` is reserved for it in v2.
+
 ---
 
-# 165. Protocol Source of Truth
+# 167. Protocol Source of Truth
 
 This document defines the Remote Protocol v1 wire contract.
 
@@ -3306,7 +3561,7 @@ but the wire protocol must remain identical.
 
 ---
 
-# 166. Final Architecture
+# 168. Final Architecture
 
 ```text
                               REMOTE
@@ -3315,15 +3570,13 @@ but the wire protocol must remain identical.
               │                                   │
           Discovery                            Transport
               │                                   │
-       ┌──────┴──────┐                   ┌────────┴────────┐
-       │             │                   │                 │
-      IPv4          IPv6               QUIC           Bluetooth
-       │             │                   │                 │
-       └──────┬──────┘                   │                 │
-              │                          │                 │
-        UDP 48621                        │          BLE + L2CAP
-                                         │
-                                   UDP 48622
+       ┌──────┴──────┐                          QUIC
+       │             │                           │
+      IPv4          IPv6                         │
+       │             │                           │
+       └──────┬──────┘                           │
+              │                                  │
+        UDP 48621                          UDP 48622
                                          │
                               ┌──────────┴──────────┐
                               │                     │
@@ -3350,7 +3603,7 @@ but the wire protocol must remain identical.
 
 ---
 
-# 167. End State
+# 169. End State
 
 Remote Protocol v1 defines:
 
@@ -3371,6 +3624,7 @@ Remote Protocol v1 defines:
 * Keyboard control.
 * Window control.
 * Media control.
+* Sharing.
 * Audio streaming.
 * Video streaming.
 * Camera streaming.
@@ -3389,4 +3643,12 @@ Remote Protocol v1 defines:
 * CLI/GUI integration boundaries.
 * Protocol compatibility rules.
 
-**Remote Protocol v1 contains no undefined wire-level behavior.**
+Deliberately deferred to Protocol v2:
+
+* Bluetooth transport.
+* Commands service (remote command execution).
+* Clipboard history.
+* Adaptive stream renegotiation.
+* Rotating discovery identifiers.
+
+Remote Protocol v1 is a Draft. See "Path to Stable" at the top of this document.

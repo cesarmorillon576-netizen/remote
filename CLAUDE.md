@@ -11,7 +11,7 @@ Remote is an open-source, local-first device continuity platform (think independ
 - `docs/000-vision.md` — goals, non-goals, philosophy
 - `docs/001-requirements.md` — FR/NFR/SEC/PLAT requirement catalog
 - `docs/002-architecture.md` — layering, crate responsibilities, dependency rules
-- `docs/003-protocol.md` — Remote Protocol v1 wire spec (QUIC + CBOR, Ed25519 identity). Treated as the source of truth for wire behavior, but currently **under revision**: see `docs/design/2026-08-08-docs-revision-design.md` for the approved redesign (mTLS + certificate pinning + SAS pairing replacing app-level AUTH; Bluetooth deferred to v2; Sharing service added; Commands deferred; complete per-service message registries; P0 = discovery/pairing/session/clipboard/files).
+- `docs/003-protocol.md` — Remote Protocol v1 wire spec (QUIC + CBOR, Ed25519 identity in a self-signed X.509 certificate; mTLS + certificate pinning + SAS pairing; status Draft until two implementations interoperate over P0). Source of truth for wire behavior. Design rationale for the 2026-08 revision lives in `docs/design/2026-08-08-docs-revision-design.md`.
 
 ## Commands
 

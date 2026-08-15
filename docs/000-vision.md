@@ -183,6 +183,8 @@ Bluetooth may be supported as an additional transport for:
 * Communication when Wi-Fi is unavailable.
 * Low-bandwidth services.
 
+The initial implementation targets Wi-Fi (QUIC) only; Bluetooth is a future transport direction.
+
 The transport layer should remain independent from the services using it.
 
 ---

@@ -113,18 +113,18 @@ It should not need to know whether communication occurs through Wi-Fi, Bluetooth
 The current project consists of three primary Rust crates:
 
 ```text
-connect
-connectcli
-connectcore
+remote        (daemon, binary `remoted`)
+remote-cli    (CLI, binary `remote`)
+remote-core   (shared library)
 ```
 
 These crates should have clearly separated responsibilities.
 
 ---
 
-# 6. `connectcore`
+# 6. `remote-core`
 
-`connectcore` is the foundational library of Remote.
+`remote-core` is the foundational library of Remote.
 
 It should contain functionality that can be shared by different Remote applications.
 
@@ -145,7 +145,7 @@ It should provide the building blocks required to:
 Conceptually:
 
 ```text
-connectcore
+remote-core
 │
 ├── discovery
 ├── identity
@@ -162,9 +162,9 @@ The exact module structure may evolve during implementation.
 
 ---
 
-# 7. `connect`
+# 7. `remote`
 
-`connect` is the primary Remote application.
+`remote` is the primary Remote application (binary `remoted`, following the Unix daemon convention).
 
 It should provide the long-running process responsible for operating Remote on a computer.
 
@@ -186,9 +186,9 @@ The daemon should be usable without a graphical interface.
 Example:
 
 ```text
-Remote Daemon
+Remote Daemon (remoted)
      │
-     ├── connectcore
+     ├── remote-core
      │
      ├── Services
      │
@@ -197,9 +197,9 @@ Remote Daemon
 
 ---
 
-# 8. `connectcli`
+# 8. `remote-cli`
 
-`connectcli` provides the command-line interface for Remote.
+`remote-cli` provides the command-line interface for Remote (binary `remote`).
 
 The CLI should interact with the Remote core rather than implementing Remote functionality itself.
 
@@ -270,9 +270,10 @@ Microphone
 Media
 Notifications
 Device Status
-Commands
 Sharing
 ```
+
+A Commands service (remote command execution) is deferred to Protocol v2.
 
 Each service should have:
 
@@ -432,8 +433,8 @@ This allows the same service to operate over different transports.
 Potential transports include:
 
 ```text
-Wi-Fi
-Bluetooth
+Wi-Fi (v1)
+Bluetooth (future)
 Other future transports
 ```
 
@@ -637,9 +638,9 @@ The protocol should define each stage explicitly.
 
 # 22. Pairing and Trust
 
-Pairing establishes trust between devices.
+Pairing establishes trust between devices by pinning the peer's TLS certificate after the user confirms a short verification code (SAS) on both devices.
 
-Once paired, a device may reconnect without requiring the user to manually approve every connection, provided its credentials remain valid.
+Once paired, a device reconnects without manual approval: each session is mutually authenticated via TLS with certificate pinning (details in the protocol document).
 
 Users should be able to:
 
@@ -802,19 +803,17 @@ The current workspace is:
 ```text
 remote/
 │
-├── connect/
+├── remote/
 │   └── src/
 │       └── main.rs
 │
-├── connectcli/
+├── remote-cli/
 │   └── src/
 │       └── main.rs
 │
-├── connectcore/
+├── remote-core/
 │   └── src/
-│       ├── discovery.rs
-│       ├── lib.rs
-│       └── packet.rs
+│       └── lib.rs
 │
 ├── Cargo.toml
 └── Cargo.lock
@@ -825,13 +824,13 @@ This structure provides a good initial foundation for the architecture.
 The intended responsibilities are:
 
 ```text
-connect
-    Application / daemon
+remote
+    Application / daemon (binary `remoted`)
 
-connectcli
-    Command-line interface
+remote-cli
+    Command-line interface (binary `remote`)
 
-connectcore
+remote-core
     Shared Remote functionality
 ```
 
@@ -839,12 +838,12 @@ connectcore
 
 # 30. Proposed Core Organization
 
-As the project grows, `connectcore` should evolve toward clearly separated modules.
+As the project grows, `remote-core` should evolve toward clearly separated modules.
 
 A possible organization is:
 
 ```text
-connectcore/
+remote-core/
 └── src/
     ├── lib.rs
     │
@@ -1149,7 +1148,8 @@ The intended relationship is:
                        │
               ┌────────┴────────┐
               │                 │
-             Wi-Fi          Bluetooth
+             Wi-Fi         Bluetooth
+             (v1)           (future)
               │                 │
               └────────┬────────┘
                        │

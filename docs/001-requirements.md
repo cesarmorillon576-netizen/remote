@@ -19,6 +19,8 @@ Requirements are identified using the following conventions:
 
 ## FR-001 — Device Discovery
 
+**Priority:** P0
+
 Remote shall automatically discover compatible devices available on the local network.
 
 The discovery process shall:
@@ -35,6 +37,8 @@ The discovery process shall:
 
 ## FR-002 — Manual Device Connection
 
+**Priority:** P0
+
 Remote shall allow users to connect to a device manually when automatic discovery is unavailable.
 
 Manual connection may use information such as:
@@ -47,6 +51,8 @@ Manual connection may use information such as:
 ---
 
 ## FR-003 — Device Identification
+
+**Priority:** P0
 
 Every Remote installation shall have a unique device identity.
 
@@ -66,6 +72,8 @@ Platform: Linux
 
 ## FR-004 — Device Pairing
 
+**Priority:** P0
+
 Remote shall provide an explicit pairing process before allowing privileged communication between devices.
 
 Pairing shall require user confirmation.
@@ -81,6 +89,8 @@ The system may support:
 
 ## FR-005 — Device Authorization
 
+**Priority:** P0
+
 Users shall be able to authorize or reject individual devices.
 
 A rejected device shall not be able to establish an authorized Remote session.
@@ -88,6 +98,8 @@ A rejected device shall not be able to establish an authorized Remote session.
 ---
 
 ## FR-006 — Device Permissions
+
+**Priority:** P0
 
 Remote shall allow capabilities to be granted independently.
 
@@ -111,6 +123,8 @@ Permissions shall be configurable per device.
 
 ## FR-007 — Connection Management
 
+**Priority:** P0
+
 Remote shall provide mechanisms to:
 
 * Establish connections.
@@ -124,6 +138,8 @@ Remote shall provide mechanisms to:
 
 ## FR-008 — Multiple Devices
 
+**Priority:** P0
+
 Remote shall support multiple devices connected simultaneously.
 
 A device shall be able to communicate with more than one paired device.
@@ -133,6 +149,8 @@ A device shall be able to communicate with more than one paired device.
 # 3. Clipboard
 
 ## FR-CLP-001 — Bidirectional Clipboard Synchronization
+
+**Priority:** P0
 
 Remote shall synchronize clipboard data between connected devices.
 
@@ -147,6 +165,8 @@ Mobile → Computer
 
 ## FR-CLP-002 — Automatic Synchronization
 
+**Priority:** P0
+
 When enabled, clipboard changes shall be propagated automatically.
 
 The expected behavior is near real-time synchronization.
@@ -154,6 +174,8 @@ The expected behavior is near real-time synchronization.
 ---
 
 ## FR-CLP-003 — Clipboard Types
+
+**Priority:** P0
 
 Remote should support, where the platform allows:
 
@@ -166,6 +188,8 @@ Remote should support, where the platform allows:
 ---
 
 ## FR-CLP-004 — Clipboard Loop Prevention
+
+**Priority:** P0
 
 Remote shall prevent synchronization loops.
 
@@ -189,11 +213,15 @@ A clipboard update shall contain sufficient metadata to determine whether it ori
 
 ## FR-CLP-005 — Clipboard Deduplication
 
+**Priority:** P0
+
 Remote shall avoid repeatedly transmitting identical clipboard contents.
 
 ---
 
 ## FR-CLP-006 — Clipboard History
+
+**Priority:** P3
 
 Remote may provide synchronized clipboard history.
 
@@ -210,6 +238,8 @@ The history may support:
 
 ## FR-FILE-001 — Bidirectional File Transfer
 
+**Priority:** P0
+
 Remote shall allow files to be transferred in both directions.
 
 ```text
@@ -221,17 +251,23 @@ Mobile → Computer
 
 ## FR-FILE-002 — Multiple Files
 
+**Priority:** P0
+
 Remote shall support transferring multiple files in a single operation.
 
 ---
 
 ## FR-FILE-003 — Directory Transfer
 
+**Priority:** P1
+
 Remote should support transferring directories recursively.
 
 ---
 
 ## FR-FILE-004 — Transfer Progress
+
+**Priority:** P0
 
 The system shall provide transfer progress information.
 
@@ -247,11 +283,15 @@ Progress may include:
 
 ## FR-FILE-005 — Transfer Cancellation
 
+**Priority:** P0
+
 Users shall be able to cancel an active transfer.
 
 ---
 
 ## FR-FILE-006 — Transfer Integrity
+
+**Priority:** P0
 
 Remote shall provide a mechanism for verifying file integrity after transfer.
 
@@ -259,17 +299,23 @@ Remote shall provide a mechanism for verifying file integrity after transfer.
 
 ## FR-FILE-007 — Transfer Resumption
 
+**Priority:** P1
+
 Remote should support resuming interrupted transfers.
 
 ---
 
 ## FR-FILE-008 — Drag and Drop
 
+**Priority:** P1
+
 Graphical clients may support drag-and-drop file transfers.
 
 ---
 
 ## FR-FILE-009 — File Conflict Handling
+
+**Priority:** P0
 
 Remote shall define behavior for situations where the destination already contains a file with the same name.
 
@@ -285,6 +331,8 @@ Possible behaviors:
 # 5. Remote Input
 
 ## FR-INPUT-001 — Remote Mouse
+
+**Priority:** P1
 
 A mobile device shall be able to operate as a remote mouse.
 
@@ -302,6 +350,8 @@ Supported operations shall include:
 
 ## FR-INPUT-002 — Touchpad
 
+**Priority:** P1
+
 A mobile device shall be able to operate as a touchpad.
 
 The implementation may support:
@@ -315,6 +365,8 @@ The implementation may support:
 ---
 
 ## FR-INPUT-003 — Remote Keyboard
+
+**Priority:** P1
 
 A mobile device shall be able to send keyboard input to a computer.
 
@@ -330,6 +382,8 @@ Supported input should include:
 
 ## FR-INPUT-004 — Input Permissions
 
+**Priority:** P1
+
 Remote input shall require explicit authorization.
 
 ---
@@ -338,11 +392,15 @@ Remote input shall require explicit authorization.
 
 ## FR-WIN-001 — Window Discovery
 
+**Priority:** P2
+
 Where supported by the platform, Remote shall be able to retrieve information about available application windows.
 
 ---
 
 ## FR-WIN-002 — Window Control
+
+**Priority:** P2
 
 Where supported, Remote shall allow authorized clients to:
 
@@ -358,6 +416,8 @@ Where supported, Remote shall allow authorized clients to:
 
 ## FR-WIN-003 — Platform Independence
 
+**Priority:** P2
+
 Window management shall use platform-specific implementations behind a common interface.
 
 The core Remote protocol shall not depend on a specific desktop environment.
@@ -367,6 +427,8 @@ The core Remote protocol shall not depend on a specific desktop environment.
 # 7. Audio
 
 ## FR-AUDIO-001 — Bidirectional Audio
+
+**Priority:** P2
 
 Remote shall support audio transmission in both directions.
 
@@ -379,17 +441,23 @@ Mobile → Computer
 
 ## FR-AUDIO-002 — Audio Input
 
+**Priority:** P2
+
 A mobile device may expose its microphone as an audio input device for a computer.
 
 ---
 
 ## FR-AUDIO-003 — Audio Output
 
+**Priority:** P2
+
 A mobile device may act as an audio output destination for a computer.
 
 ---
 
 ## FR-AUDIO-004 — Audio Quality
+
+**Priority:** P2
 
 Remote shall support configurable audio quality where practical.
 
@@ -404,11 +472,15 @@ Configuration may include:
 
 ## FR-AUDIO-005 — Low Latency Audio
 
+**Priority:** P2
+
 Audio transmission shall prioritize low latency for interactive use cases.
 
 ---
 
 ## FR-AUDIO-006 — Audio Device Selection
+
+**Priority:** P2
 
 Users shall be able to select which audio device is used for Remote audio streams where supported by the platform.
 
@@ -417,6 +489,8 @@ Users shall be able to select which audio device is used for Remote audio stream
 # 8. Video
 
 ## FR-VIDEO-001 — Bidirectional Video
+
+**Priority:** P2
 
 Remote shall support video transmission between connected devices.
 
@@ -429,11 +503,15 @@ Mobile → Computer
 
 ## FR-VIDEO-002 — Screen Streaming
 
+**Priority:** P2
+
 A computer shall be able to stream its display to an authorized mobile device.
 
 ---
 
 ## FR-VIDEO-003 — Mobile Screen Streaming
+
+**Priority:** P2
 
 A mobile device should be able to stream its display to an authorized computer where supported by the operating system.
 
@@ -441,17 +519,23 @@ A mobile device should be able to stream its display to an authorized computer w
 
 ## FR-VIDEO-004 — Display Selection
 
+**Priority:** P2
+
 Where supported, users shall be able to select which display is streamed.
 
 ---
 
 ## FR-VIDEO-005 — Window Streaming
 
+**Priority:** P2
+
 Where supported, Remote should allow a specific application window to be streamed instead of the entire display.
 
 ---
 
 ## FR-VIDEO-006 — Video Configuration
+
+**Priority:** P2
 
 Remote should provide configurable:
 
@@ -464,6 +548,8 @@ Remote should provide configurable:
 
 ## FR-VIDEO-007 — Low Latency
 
+**Priority:** P2
+
 Video streaming shall prioritize low latency for interactive use cases.
 
 ---
@@ -472,11 +558,15 @@ Video streaming shall prioritize low latency for interactive use cases.
 
 ## FR-CAM-001 — Remote Camera
 
+**Priority:** P2
+
 A mobile device shall be able to expose its camera to a connected computer.
 
 ---
 
 ## FR-CAM-002 — Camera Selection
+
+**Priority:** P2
 
 Where supported, users shall be able to select between available cameras.
 
@@ -489,6 +579,8 @@ For example:
 
 ## FR-CAM-003 — Camera Configuration
 
+**Priority:** P2
+
 Where supported, Remote should allow configuration of:
 
 * Resolution.
@@ -500,6 +592,8 @@ Where supported, Remote should allow configuration of:
 
 ## FR-CAM-004 — Webcam Integration
 
+**Priority:** P2
+
 Remote should provide a mechanism for applications on the computer to use the mobile camera as a webcam.
 
 ---
@@ -508,11 +602,15 @@ Remote should provide a mechanism for applications on the computer to use the mo
 
 ## FR-MIC-001 — Remote Microphone
 
+**Priority:** P2
+
 A mobile device shall be able to expose its microphone to a connected computer.
 
 ---
 
 ## FR-MIC-002 — Microphone Configuration
+
+**Priority:** P2
 
 Where supported, users should be able to configure:
 
@@ -525,6 +623,8 @@ Where supported, users should be able to configure:
 
 ## FR-MIC-003 — Microphone Privacy
 
+**Priority:** P2
+
 Microphone access shall require explicit user authorization.
 
 The mobile application shall clearly indicate when the microphone is being used.
@@ -534,6 +634,8 @@ The mobile application shall clearly indicate when the microphone is being used.
 # 11. Media Control
 
 ## FR-MEDIA-001 — Playback Control
+
+**Priority:** P1
 
 Remote shall allow authorized devices to control media playback.
 
@@ -550,6 +652,8 @@ Supported operations should include:
 
 ## FR-MEDIA-002 — Volume Control
 
+**Priority:** P1
+
 Remote shall allow authorized devices to control system or media volume where supported.
 
 Operations shall include:
@@ -563,6 +667,8 @@ Operations shall include:
 ---
 
 ## FR-MEDIA-003 — Media Information
+
+**Priority:** P1
 
 Remote should expose currently playing media information where supported.
 
@@ -582,17 +688,23 @@ Information may include:
 
 ## FR-NOTIFY-001 — Notification Synchronization
 
+**Priority:** P2
+
 Remote may synchronize notifications between connected devices.
 
 ---
 
 ## FR-NOTIFY-002 — Notification Filtering
 
+**Priority:** P2
+
 Users shall be able to configure which applications or notification categories may be synchronized.
 
 ---
 
 ## FR-NOTIFY-003 — Notification Actions
+
+**Priority:** P2
 
 Where supported, Remote may expose notification actions to the remote device.
 
@@ -601,6 +713,8 @@ Where supported, Remote may expose notification actions to the remote device.
 # 13. Device Status
 
 ## FR-STATUS-001 — Device Information
+
+**Priority:** P2
 
 Remote shall expose basic information about connected devices.
 
@@ -616,11 +730,15 @@ Information may include:
 
 ## FR-STATUS-002 — Battery Status
 
+**Priority:** P2
+
 Where supported, Remote shall expose battery information.
 
 ---
 
 ## FR-STATUS-003 — System Status
+
+**Priority:** P2
 
 Where supported, Remote may expose:
 
@@ -637,17 +755,23 @@ Where supported, Remote may expose:
 
 ## FR-SHARE-001 — Link Sharing
 
+**Priority:** P1
+
 Remote shall allow users to send links between devices.
 
 ---
 
 ## FR-SHARE-002 — Text Sharing
 
+**Priority:** P1
+
 Remote shall allow users to send arbitrary text between connected devices.
 
 ---
 
 ## FR-SHARE-003 — Content Sharing
+
+**Priority:** P1
 
 Remote should provide a generic mechanism for sharing supported content between devices.
 
@@ -657,17 +781,23 @@ Remote should provide a generic mechanism for sharing supported content between 
 
 ## FR-CMD-001 — Command Execution
 
+**Priority:** P3
+
 Remote may allow an authorized device to request execution of predefined commands on another device.
 
 ---
 
 ## FR-CMD-002 — Command Authorization
 
+**Priority:** P3
+
 Commands shall require explicit authorization.
 
 ---
 
 ## FR-CMD-003 — User-Defined Commands
+
+**Priority:** P3
 
 Users may define custom commands.
 
@@ -682,11 +812,15 @@ open-project
 
 Arbitrary command execution shall not be enabled by default.
 
+Remote Commands are out of Protocol v1 scope and deferred to v2; service ID `0x0D00` is reserved for them.
+
 ---
 
 # 16. Device Discovery and Capability Negotiation
 
 ## FR-CAP-001 — Capability Advertisement
+
+**Priority:** P0
 
 Each device shall advertise the capabilities it supports.
 
@@ -707,11 +841,15 @@ camera
 
 ## FR-CAP-002 — Capability Negotiation
 
+**Priority:** P0
+
 Connected devices shall determine which capabilities are mutually supported.
 
 ---
 
 ## FR-CAP-003 — Capability Versioning
+
+**Priority:** P0
 
 Capabilities shall be independently versioned where necessary.
 
@@ -726,6 +864,8 @@ video: 1
 ---
 
 ## FR-CAP-004 — Dynamic Capabilities
+
+**Priority:** P0
 
 The system should support capabilities becoming available or unavailable while a device remains connected.
 
@@ -763,11 +903,15 @@ Services should not directly depend on the underlying network transport.
 
 ## FR-TRANSPORT-001 — Transport Abstraction
 
+**Priority:** P0
+
 The Remote architecture shall abstract the underlying communication transport from application services.
 
 ---
 
 ## FR-TRANSPORT-002 — Wi-Fi
+
+**Priority:** P0
 
 Wi-Fi shall be the primary transport for Remote communication.
 
@@ -775,11 +919,17 @@ Wi-Fi shall be the primary transport for Remote communication.
 
 ## FR-TRANSPORT-003 — Bluetooth
 
+**Priority:** P3
+
 Bluetooth may be supported as an additional transport.
+
+Bluetooth is a future transport: Protocol v1 operates over QUIC/UDP only.
 
 ---
 
 ## FR-TRANSPORT-004 — Transport Extensibility
+
+**Priority:** P0
 
 The architecture should allow additional transports to be introduced without redesigning existing services.
 
@@ -789,17 +939,23 @@ The architecture should allow additional transports to be introduced without red
 
 ## FR-CLI-001 — Device Listing
 
+**Priority:** P0
+
 The CLI shall allow users to list known and discovered devices.
 
 ---
 
 ## FR-CLI-002 — Pairing
 
+**Priority:** P0
+
 The CLI shall allow users to initiate and manage pairing.
 
 ---
 
 ## FR-CLI-003 — Connection Management
+
+**Priority:** P0
 
 The CLI shall allow users to:
 
@@ -812,17 +968,23 @@ The CLI shall allow users to:
 
 ## FR-CLI-004 — Service Management
 
+**Priority:** P0
+
 The CLI shall allow users to inspect and configure available services.
 
 ---
 
 ## FR-CLI-005 — File Transfer
 
+**Priority:** P0
+
 The CLI shall support file transfers.
 
 ---
 
 ## FR-CLI-006 — Diagnostics
+
+**Priority:** P0
 
 The CLI shall provide diagnostic information useful for troubleshooting connectivity.
 
@@ -832,11 +994,15 @@ The CLI shall provide diagnostic information useful for troubleshooting connecti
 
 ## FR-GUI-001 — Optional GUI
 
+**Priority:** P2
+
 Remote may provide a graphical user interface.
 
 ---
 
 ## FR-GUI-002 — Shared Core
+
+**Priority:** P2
 
 The GUI shall use the same underlying Remote core and services as the CLI.
 
@@ -847,6 +1013,8 @@ The GUI shall not contain independent implementations of core functionality.
 # 21. Configuration
 
 ## FR-CONFIG-001 — Persistent Configuration
+
+**Priority:** P0
 
 Remote shall provide persistent configuration.
 
@@ -865,6 +1033,8 @@ Configuration may include:
 
 ## FR-CONFIG-002 — Service Configuration
 
+**Priority:** P0
+
 Users shall be able to enable or disable individual services.
 
 ---
@@ -873,17 +1043,23 @@ Users shall be able to enable or disable individual services.
 
 ## SEC-001 — Encrypted Communication
 
+**Priority:** P0
+
 Authorized device communication shall be encrypted.
 
 ---
 
 ## SEC-002 — Device Authentication
 
-Remote shall authenticate connected devices.
+**Priority:** P0
+
+Remote shall mutually authenticate devices using TLS with pinned per-device certificates.
 
 ---
 
 ## SEC-003 — Explicit Pairing
+
+**Priority:** P0
 
 A device shall not gain privileged access solely because it is present on the same network.
 
@@ -891,11 +1067,15 @@ A device shall not gain privileged access solely because it is present on the sa
 
 ## SEC-004 — Permission Enforcement
 
+**Priority:** P0
+
 Services shall verify that the remote device has permission before performing privileged operations.
 
 ---
 
 ## SEC-005 — Credential Protection
+
+**Priority:** P0
 
 Private keys, credentials, and other sensitive pairing information shall be stored securely according to the host platform.
 
@@ -903,11 +1083,15 @@ Private keys, credentials, and other sensitive pairing information shall be stor
 
 ## SEC-006 — Microphone Authorization
 
+**Priority:** P0
+
 Microphone access shall require explicit authorization.
 
 ---
 
 ## SEC-007 — Camera Authorization
+
+**Priority:** P0
 
 Camera access shall require explicit authorization.
 
@@ -915,11 +1099,15 @@ Camera access shall require explicit authorization.
 
 ## SEC-008 — Remote Input Authorization
 
+**Priority:** P0
+
 Mouse and keyboard control shall require explicit authorization.
 
 ---
 
 ## SEC-009 — Command Authorization
+
+**Priority:** P0
 
 Remote command execution shall require explicit authorization.
 
@@ -927,7 +1115,17 @@ Remote command execution shall require explicit authorization.
 
 ## SEC-010 — Secure Defaults
 
+**Priority:** P0
+
 Remote shall use restrictive defaults for privileged functionality.
+
+---
+
+## SEC-011 — Pairing Verification
+
+**Priority:** P0
+
+Pairing shall display a short verification code derived from both device identities on both devices, and shall require the user to confirm the code matches before trust is established.
 
 ---
 
@@ -935,17 +1133,23 @@ Remote shall use restrictive defaults for privileged functionality.
 
 ## NFR-PRIV-001 — Local First
 
+**Priority:** P0
+
 Core functionality shall not require a remote cloud service.
 
 ---
 
 ## NFR-PRIV-002 — No Unnecessary Telemetry
 
+**Priority:** P0
+
 Remote shall not collect unnecessary user telemetry.
 
 ---
 
 ## NFR-PRIV-003 — User Control
+
+**Priority:** P0
 
 Users shall be able to determine which devices and services are allowed to communicate.
 
@@ -954,6 +1158,8 @@ Users shall be able to determine which devices and services are allowed to commu
 # 24. Performance Requirements
 
 ## NFR-PERF-001 — Low Latency
+
+**Priority:** P1
 
 Interactive services shall prioritize low latency.
 
@@ -968,11 +1174,15 @@ This particularly applies to:
 
 ## NFR-PERF-002 — Resource Efficiency
 
+**Priority:** P1
+
 The Remote daemon should consume minimal CPU and memory while idle.
 
 ---
 
 ## NFR-PERF-003 — Efficient Transfer
+
+**Priority:** P1
 
 Large file transfers should utilize the available network bandwidth efficiently.
 
@@ -980,11 +1190,15 @@ Large file transfers should utilize the available network bandwidth efficiently.
 
 ## NFR-PERF-004 — Adaptive Streaming
 
+**Priority:** P2
+
 Audio and video services should be capable of adapting quality to network conditions.
 
 ---
 
 ## NFR-PERF-005 — Background Operation
+
+**Priority:** P1
 
 Remote should be capable of operating continuously in the background without requiring the CLI to remain open.
 
@@ -994,11 +1208,15 @@ Remote should be capable of operating continuously in the background without req
 
 ## NFR-REL-001 — Reconnection
 
+**Priority:** P0
+
 Remote shall automatically attempt to restore interrupted connections when appropriate.
 
 ---
 
 ## NFR-REL-002 — Service Isolation
+
+**Priority:** P1
 
 Failure of one service should not unnecessarily terminate unrelated services.
 
@@ -1016,11 +1234,15 @@ Clipboard continues working
 
 ## NFR-REL-003 — Graceful Failure
 
+**Priority:** P0
+
 Network failures shall not cause data corruption or undefined application state.
 
 ---
 
 ## NFR-REL-004 — Interrupted Transfers
+
+**Priority:** P1
 
 File transfers should be recoverable after temporary connection loss.
 
@@ -1030,11 +1252,15 @@ File transfers should be recoverable after temporary connection loss.
 
 ## PLAT-001 — Linux
 
+**Priority:** P0
+
 Remote shall support Linux.
 
 ---
 
 ## PLAT-002 — Windows
+
+**Priority:** P2
 
 Remote shall support Windows.
 
@@ -1042,11 +1268,15 @@ Remote shall support Windows.
 
 ## PLAT-003 — Android
 
+**Priority:** P1
+
 Remote shall support Android.
 
 ---
 
 ## PLAT-004 — Linux Desktop Independence
+
+**Priority:** P0
 
 The Linux implementation shall not require a specific desktop environment.
 
@@ -1054,17 +1284,23 @@ The Linux implementation shall not require a specific desktop environment.
 
 ## PLAT-005 — Wayland
 
+**Priority:** P0
+
 Wayland shall be a first-class target.
 
 ---
 
 ## PLAT-006 — X11
 
+**Priority:** P1
+
 X11 support should be provided where practical.
 
 ---
 
 ## PLAT-007 — Platform Abstraction
+
+**Priority:** P0
 
 Platform-specific functionality shall be isolated behind defined interfaces.
 
@@ -1074,11 +1310,15 @@ Platform-specific functionality shall be isolated behind defined interfaces.
 
 ## FR-EXT-001 — Service Extensibility
 
+**Priority:** P0
+
 New services should be implementable without modifying unrelated services.
 
 ---
 
 ## FR-EXT-002 — Transport Extensibility
+
+**Priority:** P0
 
 New network transports should be implementable without rewriting service logic.
 
@@ -1086,17 +1326,23 @@ New network transports should be implementable without rewriting service logic.
 
 ## FR-EXT-003 — Capability Extensibility
 
+**Priority:** P0
+
 New capabilities should be introducible without breaking existing clients.
 
 ---
 
 ## FR-EXT-004 — Protocol Versioning
 
+**Priority:** P0
+
 The protocol shall provide a mechanism for evolving without requiring all devices to update simultaneously.
 
 ---
 
 ## FR-EXT-005 — Plugin Support
+
+**Priority:** P3
 
 Remote may provide a plugin mechanism for third-party functionality.
 
@@ -1106,11 +1352,15 @@ Remote may provide a plugin mechanism for third-party functionality.
 
 ## NFR-OBS-001 — Logging
 
+**Priority:** P0
+
 Remote shall provide structured logging suitable for debugging.
 
 ---
 
 ## NFR-OBS-002 — Log Levels
+
+**Priority:** P0
 
 The system should provide configurable log levels.
 
@@ -1128,6 +1378,8 @@ trace
 
 ## NFR-OBS-003 — Diagnostics
 
+**Priority:** P0
+
 Users shall be able to inspect connection and service failures.
 
 ---
@@ -1136,11 +1388,15 @@ Users shall be able to inspect connection and service failures.
 
 ## NFR-MAINT-001 — Modular Architecture
 
+**Priority:** P0
+
 The codebase shall remain divided into well-defined components.
 
 ---
 
 ## NFR-MAINT-002 — Separation of Concerns
+
+**Priority:** P0
 
 Networking, protocol handling, platform integration, and services shall remain independently structured.
 
@@ -1148,11 +1404,15 @@ Networking, protocol handling, platform integration, and services shall remain i
 
 ## NFR-MAINT-003 — Public Protocol Documentation
 
+**Priority:** P0
+
 The communication protocol shall be documented publicly.
 
 ---
 
 ## NFR-MAINT-004 — Automated Testing
+
+**Priority:** P0
 
 Core protocol and service behavior should have automated tests.
 
@@ -1162,11 +1422,15 @@ Core protocol and service behavior should have automated tests.
 
 ## NFR-COMPAT-001 — Protocol Compatibility
 
+**Priority:** P0
+
 New protocol versions should preserve compatibility with older compatible clients whenever practical.
 
 ---
 
 ## NFR-COMPAT-002 — Capability Compatibility
+
+**Priority:** P0
 
 Devices shall be able to connect even when they do not support the same capabilities.
 
@@ -1201,25 +1465,28 @@ Remote will be considered successful when a user can:
 
 1. Install Remote on a computer and mobile device.
 2. Discover the other device automatically.
-3. Pair both devices securely.
+3. Pair both devices securely, confirming a verification code on both.
 4. See the capabilities available on each device.
 5. Transfer files in either direction.
 6. Synchronize clipboard contents.
 7. Control the computer using the mobile device.
 8. Control media remotely.
-9. Stream audio between devices.
-10. Use the mobile device as a microphone.
-11. Use the mobile device as a camera or webcam.
-12. Stream video between devices.
-13. Perform these operations without depending on a specific desktop environment.
-14. Use the core system primarily through the CLI.
-15. Continue using independent services when another service fails.
+9. Share links and text between devices.
+10. Stream audio between devices.
+11. Use the mobile device as a microphone.
+12. Use the mobile device as a camera or webcam.
+13. Stream video between devices.
+14. Perform these operations without depending on a specific desktop environment.
+15. Use the core system primarily through the CLI.
+16. Continue using independent services when another service fails.
+
+Items 1–6 are the P0 milestone; items 7–9 are P1; items 10–13 are P2.
 
 ---
 
 # 32. Requirement Priorities
 
-Requirements shall eventually be assigned one of the following priorities:
+Each requirement above carries its priority tag, with the following meaning:
 
 ### P0 — Core
 
@@ -1236,6 +1503,8 @@ Important functionality that may be implemented after the core platform is stabl
 ### P3 — Experimental
 
 Future functionality or features requiring additional research.
+
+P0 is the first end-to-end milestone: a usable install → discover → pair → transfer files → sync clipboard path.
 
 Priority assignments may change as development progresses.
 
